@@ -1,12 +1,13 @@
 {
   "name": "alqawdi_design_bot",
   "version": "1.0.0",
+  "type": "module",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
-    "dotenv": "^16.3.1",
-    "telegraf": "^4.15.2"
+    "dotenv": "^16.4.5",
+    "grammy": "^1.19.2"
   }
 }
