@@ -1,37 +1,66 @@
-// 📁 bot.js import { Bot, session } from "grammy"; import { config } from "dotenv"; config();
+import { Bot, InlineKeyboard } from "grammy";
+import dotenv from "dotenv";
 
-const bot = new Bot(process.env.BOT_TOKEN); const ADMIN_ID = parseInt(process.env.ADMIN_ID); const CHANNEL_USERNAME = process.env.CHANNEL_USERNAME;
+dotenv.config();
 
-// 🧠 الجلسة لتخزين حالة المستخدمين bot.use(session({ initial: () => ({ state: null }) }));
+const bot = new Bot(process.env.BOT_TOKEN);
+const CHANNEL_USERNAME = process.env.CHANNEL_USERNAME;
+const ADMIN_ID = process.env.ADMIN_ID;
 
-// ✅ أمر /start مع التحقق من الاشتراك bot.command("start", async (ctx) => { try { const userId = ctx.from.id; const chatMember = await ctx.api.getChatMember(CHANNEL_USERNAME, userId);
-
-if (["member", "administrator", "creator"].includes(chatMember.status)) {
-  await ctx.reply(
-    "🎨 أهلاً بك في بوت الواقدي لتصاميم والجرافيكس!\nاختر من القائمة:",
-    {
-      reply_markup: {
-        keyboard: [
-          ["🖼 عرض التصاميم", "📝 طلب تصميم"],
-          ["💬 تواصل مباشر"]
-        ],
-        resize_keyboard: true
-      }
-    }
-  );
-} else {
-  await ctx.reply(`⚠️ يجب الاشتراك في القناة أولاً: ${CHANNEL_USERNAME}`);
+// ✅ تحقق من الاشتراك الإجباري
+async function checkSubscription(ctx) {
+  try {
+    const member = await ctx.api.getChatMember(CHANNEL_USERNAME, ctx.from.id);
+    const status = member.status;
+    return status === "member" || status === "administrator" || status === "creator";
+  } catch (err) {
+    console.error("خطأ في التحقق من الاشتراك:", err.message);
+    return false;
+  }
 }
 
-} catch (error) { console.error("خطأ في التحقق من الاشتراك:", error.message); await ctx.reply("⚠️ حدث خطأ أثناء التحقق من الاشتراك."); } });
+// ✅ الرد على /start
+bot.command("start", async (ctx) => {
+  const isSubscribed = await checkSubscription(ctx);
+  if (!isSubscribed) {
+    return ctx.reply("📢 للمتابعة، الرجاء الاشتراك في القناة أولاً:", {
+      reply_markup: new InlineKeyboard().url("🔗 اشترك هنا", `https://t.me/${CHANNEL_USERNAME.replace("@", "")}`)
+    });
+  }
 
-// 📸 عرض التصاميم bot.hears("🖼 عرض التصاميم", async (ctx) => { await ctx.reply("📂 إليك بعض من تصاميمنا:"); // يمكنك إضافة صور تصميم هنا لاحقًا });
+  const keyboard = new InlineKeyboard()
+    .text("🖼 عرض التصاميم", "show_designs")
+    .text("📝 طلب تصميم", "request_design")
+    .row()
+    .text("💬 تواصل مباشر", "contact_admin");
 
-// 📝 طلب تصميم bot.hears("📝 طلب تصميم", async (ctx) => { ctx.session.state = "awaiting_request"; await ctx.reply("✍️ أرسل تفاصيل التصميم الذي تريده:"); });
+  await ctx.reply("مرحباً بك في بوت الواقدي لتصاميم والجرافيكس 🎨\nاختر من القائمة:", {
+    reply_markup: keyboard
+  });
+});
 
-bot.on("message:text", async (ctx) => { if (ctx.session.state === "awaiting_request") { ctx.session.state = null; const msg = 📥 طلب جديد من @${ctx.from.username || "بدون معرف"} (ID: ${ctx.from.id}):\n\n${ctx.message.text}; await ctx.reply("✅ تم استلام طلبك وسنقوم بمراجعته قريباً."); await ctx.api.sendMessage(ADMIN_ID, msg); } });
+// ✅ عرض التصاميم
+bot.callbackQuery("show_designs", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.reply("📷 هذه بعض التصاميم:\n\n1. تصميم شعار\n2. تصميم بوستر\n3. تصميم سوشيال ميديا");
+});
 
-// 💬 تواصل مباشر bot.hears("💬 تواصل مباشر", async (ctx) => { await ctx.reply("🔗 يمكنك التواصل معنا على: @V_i_V_52"); });
+// ✅ طلب تصميم
+bot.callbackQuery("request_design", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.reply("📝 الرجاء إرسال تفاصيل التصميم المطلوب (النوع، الفكرة، الألوان، المقاسات):");
+  
+  bot.on("message:text", async (ctx2) => {
+    await ctx2.reply("✅ تم استلام طلبك، سيتم الرد قريباً.");
+    await ctx2.api.sendMessage(ADMIN_ID, `📥 طلب تصميم جديد من @${ctx2.from.username || "مستخدم"}:\n\n${ctx2.message.text}`);
+  });
+});
 
-// 🚀 تشغيل البوت bot.start();
+// ✅ تواصل مباشر
+bot.callbackQuery("contact_admin", async (ctx) => {
+  await ctx.answerCallbackQuery();
+  await ctx.reply("📨 يمكنك التواصل مع المصمم مباشرة:\n@mix_5_11");
+});
 
+// ✅ تشغيل البوت
+bot.start();
